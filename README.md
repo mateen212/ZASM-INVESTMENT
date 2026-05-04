@@ -1,206 +1,364 @@
-# CashFlow — Professional README
+# ZASM INVESTMENT
 
-Clear, project-specific documentation and workflows for Deals, Offerings, Deal Classes, Investments, Waterfalls, Distributions and the Partner program used in this repository.
-
-Contact: mateenzahid1598@gmail.com
-
-## Contents
-
-- **Overview**
-- **Key Terms**
-- **Models & Relationships (quick)**
-- **Admin / Sponsor Workflow**
-- **Deal Classes: Setup & Rules**
-- **Offerings: Lifecycle & Visibility**
-- **Investor Flow: From Signup to Funded Investment**
-- **Waterfall & Distribution Workflow**
-- **Documents & E-sign**
-- **Third-party Integrations & Links**
-- **Partner Program**
-- **Developer Notes & Commands**
+Enterprise-grade Laravel investment platform supporting investor onboarding, deal/offering management, contract signing, waterfall modeling, distributions, partner operations, and multi-gateway payment processing.
 
 ---
 
-## Overview
+## 1) Executive Summary
 
-CashFlow models private capital / real-estate style deals. A `Deal` groups one or more `Offering` records. Each `Offering` can publish one or more `DealClass` tranches (equity, preferred, debt) with their economics. Investors create `Investment` records against offerings/classes; distributions are processed via a `WaterFall` configuration that defines ordered hurdles and splits.
+**ZASM INVESTMENT** is a Laravel 11 platform with two active investment domains:
 
-This README documents how the system works, how to prepare and publish offerings, how investors interact with the platform, and how distributions are calculated and allocated.
+1. **Deal/Offering investment domain (newer workflow)**
+   - Deals, offerings, classes, investors, investment profiles
+   - E-sign templates and Documenso-backed contract flows
+   - Waterfall configuration and distribution record management
+   - Partner portal and partner-level deal access controls
 
-## Key Terms
+2. **Property investment domain (legacy but operational)**
+   - Share-based property investments (`Invest`)
+   - Installment plans, recurring profit schedules, cron-driven profit generation
+   - Referral commission payout chain for deposit/invest/profit events
 
-- **Deal** — main project entity (assets, classes, offerings, documents).
-- **Offering** — a capital raise tied to a Deal (public or private link-only).
-- **Deal Class** — tranche within a Deal describing minimums, preferred returns, and distribution shares.
-- **Investor** — user or entity that can commit capital.
-- **Investment** — record of a commitment or funded position tied to Deal/Offering/Class.
-- **Waterfall** — ordered allocation rules (hurdles) used during distributions.
-- **Distribution** — a cash event applied to a Deal and allocated per waterfall rules.
+This repository also includes a generic **multi-gateway deposit/IPN engine**, ACH onboarding flows via Stripe Connect, and configurable API integrations.
 
-## Models & Relationships (quick reference)
+---
 
-- `Deal` — hasMany: `DealClass`, `Offering`, `Investment`, `WaterFall`, `Distribution`, `Document`.
-- `DealClass` — belongsTo: `Deal`; hasMany: `Investment`, `ClassHurdle`.
-- `Offering` — belongsTo: `Deal`; belongsToMany: `DealClass`; hasMany: `Investment`, `Document`, `ESignTemplate`.
-- `Investment` — belongsTo: `Deal`, `Offering`, `DealClass`, `Investor`.
-- `WaterFall` — belongsTo: `Deal`; hasMany: `WaterFallHurdle`.
+## 2) Tech Stack
 
-See `app/Models/` for model implementations and casts (`MoneyCast`, `PercentageCast`).
+- **Backend:** Laravel 11, PHP 8.2
+- **Frontend:** Blade + Vue 3 + Vite
+- **Auth/Security:** Laravel auth + Sanctum + 2FA + KYC middleware + role/permission middleware
+- **Storage/Processing:** Eloquent ORM, queue config (database default), cron execution route/controller
+- **PDF & Document Tooling:** `barryvdh/laravel-dompdf`, `pdf-lib`, `pdfjs-dist`
+- **Core Access Control:** `spatie/laravel-permission`
 
-## Admin / Sponsor Workflow (create → configure → publish)
+---
 
-1. Create `Deal` and configure deal-level settings (bank accounts, sender addresses, ACH settings, owning entity).
-2. Add `DealClass` entries for each tranche. For each class set: type, name, `minimum_investment`, `raise_quota`, `distribution_share`, `preferred_return` (if any).
-3. Add `ClassHurdle` entries if class-specific hurdle rules are required (catch-ups, upside limits, honor-only flags).
-4. Create `Offering` records tied to the Deal. Configure `offering_size`, `visibility`, `status`, link classes to the offering.
-5. Upload offering documents, configure `ESignTemplate` and recipients, and add `OfferingFundingInfo` (wire instructions).
-6. Publish or share: use `visibility` flags (dashboard, investor dashboard, or link-only) and move `status` through lifecycle (Draft → Soft Commit → Hard Commit → Open → Closed).
+## 3) Business Modules (Code-Verified)
 
-## Deal Classes: Setup & Rules
+| Module | Purpose | Primary Code Areas |
+|---|---|---|
+| User onboarding & auth | Registration, login, verification, 2FA, profile completion | `app/Http/Controllers/User/Auth/*`, `AuthorizationController`, `UserController` |
+| Deal management | Deal lifecycle, classes, offering linkage, settings, members/partners | `Admin/DealController`, `DealClassController`, `routes/admin.php`, `routes/partner_dashboard.php` |
+| Offering management | Public/private visibility, assets/classes mapping, funding info, metrics | `Offering` model, `DealController@storeOffering/*offering*` |
+| Investment onboarding (deal/offering) | Investor profiles, questionnaires, wire docs, ACH, investment creation | `User/OfferingDetailController`, `Admin/InvestmentController`, `User/StripeACHController` |
+| Contract & e-sign | Template upload, field placement, recipient assignment, document send | `Admin/ESignTemplateController`, `DocumensoService`, Vue Documenso components |
+| Waterfall modeling | Nested hurdle tree, split paths, GP/stop-hurdle support, default waterfall selection | `Admin/WaterFallController`, `Admin/DealController` waterfall builders |
+| Distribution records | Deal distribution entry, visibility toggles, listing | `Admin/DistributionsController`, `Distribution` model |
+| Property investments (legacy) | Installments, profit generation/discharge, contracts | `User/InvestController`, `Admin/InvestController`, `CronController`, `PropertyInvest` |
+| Referral program | Multi-level commission matrix and payout transactions | `Admin/ReferralController`, `PropertyInvest::referralCommission`, `Referral` model |
+| Partner operations | Partner onboarding, profile, deal access and management | `routes/partner_dashboard.php`, `routes/partner_management.php`, `PartnerController` |
+| Payments/IPN | Deposit gateways, callbacks/webhooks, manual/automatic methods | `routes/ipn.php`, `Gateway/*/ProcessController`, `Gateway/PaymentController` |
 
-- `distribution_share` determines how residual distributions are split across classes after hurdle steps.
-- `preferred_return` (if present) accrues or is paid based on waterfall configuration.
-- Use `ClassHurdle` to set per-class catch-up rules and upside splits.
+---
 
-Example: Class A (LP) 90% share, 6% preferred return; Class B (GP) 10% share with carried interest after LP hurdles.
+## 4) Domain Relationships (Deals ↔ Offerings ↔ Investments)
 
-## Offerings: Lifecycle & Visibility
+### Core Eloquent relationships
 
-- Statuses: Draft (1), Open to Soft Commits (2), Open to Hard Commits (3), Open to Investments (4), WaitList (5), Closed (6), Past (7).
-- Visibility flags: `show_on_dashboard`, `show_on_deal_investor_dashboard`, `only_visible_on_link`.
+- `Deal` has many `DealClass`, `Offering`, `Investment`, `WaterFall`, `Distribution`, `Document`, `Member`
+- `Offering` belongs to `Deal`, belongs-to-many `DealClass`, has many `Investment`, has many `ESignTemplate`
+- `Investment` belongs to `Deal`, `Offering`, `Investor`, `InvestorProfile`, `DealClass`
 
-Offerings attach `DealClass` rows to control which classes are available to investors for that offering.
+### Simplified relationship graph
 
-## Investor Flow: From Signup to Funded Investment
+```text
+Deal
+ ├─ DealClass (LP/GP/etc + hurdle parameters)
+ ├─ Offering
+ │   ├─ assets/media
+ │   ├─ funding_info / manageoffering / key_metrics
+ │   ├─ eSignTemplates
+ │   └─ investments
+ ├─ WaterFalls
+ │   └─ WaterFallHurdles (tree, split paths, stop conditions, gp provisions)
+ ├─ Distributions
+ └─ Partners/Members
 
-1. Investor signs up or is onboarded via partner or admin import.
-2. Investor views offering (public or partner link) and completes any required questionnaire.
-3. Soft Commit: investor records intent (no funds moved).
-4. Hard Commit: commitment is formalized (paperwork / signatures may be required).
-5. Document signing: subscription documents are sent via e-sign and signed.
-6. Funding: sponsor provides wire instructions; investor wires funds.
-7. Funds received: investor `investment_status` transitions to `fund_received` and investment becomes active.
+Investor/User
+ ├─ InvestorProfile(s)
+ ├─ Investment(s)
+ └─ ESignTemplateRecipient(s)
+```
 
-### How investor ownership and distributions work
+---
 
-- On funding, investor percentages are stored on the `Investment` (`pcb_ownership`, `op_ownership`).
-- At distribution time: class-level allocation = class's share of the pool (after waterfall). Investor-level allocation = class allocation * investor's pro-rata (`pcb_distribution`).
+## 5) Complete System Flow
 
-## Waterfall & Distribution Workflow
+## 5.1 Investment Flow
 
-High-level algorithm:
+### A. User registration and verification
 
-1. Create a `Distribution` record with `amount` and select the `WaterFall` configuration.
-2. For each ordered `WaterFallHurdle`:
-   - Calculate amount required for the hurdle (return of capital, accrued preferred return, catch-up, promote).
-   - Pay the hurdle from the distribution pool.
-   - Apply `upside_split` / `upside_limit` rules if applicable.
-3. After hurdles, split remaining funds per final-split rules and by each class's `distribution_share`.
-4. Within each class, pro-rate to investors by `investment.pcb_distribution` or `investment.op_distribution`.
+1. User signs up via `user/register`
+2. Referral linkage is captured through `ref_by` if referral session exists
+3. Email/mobile verification and optional 2FA are enforced (`AuthorizationController`)
+4. Profile completion + optional KYC flow (`UserController@userData`, `kyc*`)
 
-Notes:
+### B. Investment creation (Deal/Offering path)
 
-- Use `Distribution.day_count` and `Distribution.compounding_period` for accurate accruals.
-- Edge conditions (partial payments, reserves) must be modeled via waterfall and distribution metadata.
+1. User opens offering detail/invest pages
+2. User submits investor profile, questionnaire(s), address/W-9 style form
+3. User submits investment amount + funding method
+4. Investment record is created under the offering (`offering_id`, `deal_id`, profile/class linkage)
+5. Funding method maps to contribution methods (`wire_transfer`, `ach_payment`, `check_payment`)
 
-## Documents & E-sign
+### C. Contract start and signing
 
-- Upload documents to `Document` and link them to `Deal` or `Offering`.
-- Create `ESignTemplate` and `ESignTemplateRecipient` rows.
-- The platform triggers e-sign flows when an investment reaches `document_started`; signed documents advance the investment to funding instructions.
+When admin creates/updates investment with status `document_started`:
 
-## Third-party Integrations & Links
+1. System finds matching e-sign template by offering + profile type
+2. Documenso recipients are created (supports multi-recipient flows like joint tenancy)
+3. Saved template fields are mapped and pushed to Documenso
+4. Document is distributed via Documenso send API
+5. Recipient token(s) are stored; user frontend loads signing token for embedded signing session
 
-Integrations are implemented in `app/Lib` and vendor packages. Common integrations include:
+### D. Return/profit logic in codebase
 
-- Payment/escrow providers (external reconciliation of wired funds).
-- E-sign providers (webhooks update signing status).
-- Email/analytics providers.
+The repository has two return engines:
 
-Check `app/Lib` and `vendor/` to see concrete provider implementations.
+- **Deal/Offering domain:** investment/distribution records + waterfall definitions (calculation orchestration is primarily structural/configurational in this code)
+- **Property legacy domain:** actual profit amount math + payout transactions via `PropertyInvest` and cron/admin discharge
 
-## Partner Program
+---
 
-- Partners are admins with `partner` role; they use `/partner` portal.
-- Deals are assigned via `partner_deals` pivot with `is_active`, `activation_key`, `role`, and `invitation_email`.
-- Partners can invite investors, share link-only offerings, and view performance for assigned deals.
+## 5.2 Deals & Offerings System
 
-## Developer Notes & Commands
+### Deal lifecycle
 
-- Model files: `app/Models/Deal.php`, `app/Models/DealClass.php`, `app/Models/Offering.php`, `app/Models/Investment.php`, `app/Models/WaterFall.php`, `app/Models/Distribution.php`.
-- Routes: `routes/web.php`, `routes/partner_management.php`, `routes/admin_partner.php`.
+- Deal creation captures sponsor/entity context and initializes default document sections
+- Deals include classes, buckets, assets, offerings, members, and partner assignments
+- Partner access is filtered by partner-deal mapping/middleware
 
-Useful commands:
+### Offering lifecycle
+
+- Offering is created under a deal with UUID
+- Assets and classes are attached (many-to-many)
+- Key metric defaults are seeded
+- Funding info, insights, and manage-offering preferences are maintained
+- Public preview exists when offering is flagged for public visibility
+
+### Relationship behavior
+
+- Deals can host multiple offerings
+- Offerings can map to multiple classes
+- Investments are persisted against both deal and offering for end-to-end traceability
+
+---
+
+## 5.3 Waterfall Distribution Logic (Step-by-Step)
+
+Waterfall logic is implemented in two layers:
+
+1. **Template/build layer (`DealController`)**
+   - Builds a “Basic Waterfall” from class/bucket hurdle inputs
+   - Handles single-path (100% share) and split-path (multi-share) strategies
+   - Generates split hurdles, class allocations, and optional stop-hurdle conditions
+
+2. **CRUD tree layer (`WaterFallController`)**
+   - Accepts nested hurdle structures
+   - Stores hurdles recursively with:
+     - `parent_id`
+     - `path` (branch identifier)
+     - `sort_order`
+   - Persists optional `stop_hurdle` and `gp_provision` nodes per hurdle
+
+### Priority/hierarchy model
+
+- Hurdles are ordered using `sort_order`
+- Split hurdles branch into explicit paths
+- Child hurdles inherit branch context via `path`
+- Optional stop conditions can terminate or cap progression
+
+---
+
+## 5.4 Distribution System
+
+### Trigger points (verified)
+
+- Admin/partner endpoints allow creation/listing/updating/deleting distribution records per deal
+- Separate distribution listing controller supports visibility toggling (`is_visible`)
+
+### Stored distribution attributes include
+
+- source, date range, distribution date
+- waterfall reference fields
+- compounding/calculation metadata
+- amount/memo/visibility markers
+
+### Execution note
+
+- The codebase clearly supports **distribution record management** and waterfall configuration.
+- Direct bank payout orchestration for deal distributions is not centrally implemented in a single payout engine in this repo (payout-style logic is explicit in the legacy property flow and referral payout transactions).
+
+---
+
+## 5.5 Partner / Referral Program
+
+## A) Partner program
+
+- Dedicated partner auth and dashboard routes
+- Partner role-based deal visibility/control
+- Partner management module for assigning/removing deals
+- Deal member invitation and role linking via pivot (`partner_deals`)
+
+## B) Referral program
+
+- Multi-level referral matrix configured by commission type:
+  - `deposit_commission`
+  - `invest_commission`
+  - `profit_commission`
+- Commission entries are stored by level and percent
+- Runtime payouts:
+  - Walk up referral chain (`ref_by`)
+  - Credit wallet balance
+  - Create transaction records and notifications
+
+---
+
+## 5.6 Third-Party Integrations (Critical)
+
+Only verified integrations from code are listed below.
+
+| Integration | Why it is used | Where it is used | Workflow impact |
+|---|---|---|---|
+| **Stripe (core + ACH + Connect)** | ACH bank linking, customer/account creation, onboarding links, bank verification, transfers | `StripeACHService`, `User/Admin StripeACHController`, `StripeWebhookController`, gateway Stripe IPN controllers | Investor/deal bank setup, ACH micro-deposits, connected-account onboarding, investor charge + account transfer flows |
+| **Documenso** | Digital document lifecycle for e-sign templates and recipient signing | `DocumensoService`, `ESignTemplateController`, `InvestmentController`, Vue Documenso components | Contract document creation, field mapping, recipient assignment, distribution/send, tokenized signing |
+| **Plaid** | Bank account linking/token exchange + Stripe bank account tokenization | `PlaidService`, `Admin/PlaidController`, `resources/js/components/fundingInfo/plaid.vue` | Admin-side bank linking and Stripe payment initiation helper path |
+| **Payment gateways (multi-provider IPN)** | Deposits via many third-party processors | `routes/ipn.php`, `Gateway/*/ProcessController` | Unified deposit confirmation path and callback processing across providers |
+| **SendGrid / Mailjet / SMTP / PHP mail** | Transactional and system emails | `Notify/Email.php`, admin notification settings | Configurable outbound email delivery by provider |
+| **Twilio / Vonage (Nexmo) / MessageBird / others** | SMS notifications and verification messaging | `Notify/SmsGateway.php`, notification admin settings | Configurable SMS delivery channels |
+| **Social login providers (via Socialite)** | User/partner social auth | Socialite controllers and auth routes | Alternative sign-in methods |
+| **BTCPay / Coinbase Commerce / Coingate / Mollie / Razorpay / etc.** | Gateway-specific payment callbacks | Gateway process controllers + IPN routes | Payment confirmation and settlement state transitions |
+
+### Webhook notes
+
+- `StripeWebhookController` handles `customer.source.verified` updates for ACH verification state.
+- `WebhookController` includes Documenso-style webhook processing logic and CSRF exception support (`/webhooks/documenso`), but public route registration in `routes/web.php` is currently commented out.
+
+---
+
+## 5.7 Investor Lifecycle (End-to-End)
+
+```text
+Signup
+  -> Email/SMS/2FA authorization gates
+  -> Profile completion and optional KYC
+  -> Offering selection
+  -> Investor profile + questionnaire + address capture
+  -> Investment creation
+  -> Contract template matching (by profile type)
+  -> Documenso recipient + field assignment
+  -> Document signing (embedded token flow)
+  -> Funding (wire / ACH / check / gateway path)
+  -> Earnings/profit accrual paths (domain-dependent)
+  -> Distribution visibility and transaction history
+  -> Withdrawal flow (wallet-based withdrawal module)
+```
+
+---
+
+## 5.8 System Architecture Overview
+
+## Application layering
+
+- **Routes:** separated by context (`admin`, `user`, `partner`, `ipn`, `web`)
+- **Controllers:** domain-centric orchestration for deals, investments, onboarding, gateways
+- **Models:** rich relationship graph and casting (money/percentage/json)
+- **Services:** external API wrappers (`DocumensoService`, `StripeACHService`, `PlaidService`)
+- **Lib layer:** financial operations (`PropertyInvest`) and helpers
+- **Middleware:** auth, role/permission, status/KYC/registration state, partner deal access
+
+## Queue, jobs, and schedulers
+
+- Queue backend defaults to `database` (`config/queue.php`)
+- `app/Jobs` currently exists but is empty
+- Scheduled/periodic behavior is primarily driven by `CronController` and cron-job tables, triggered by route (`/cron`) and cron config records
+
+## Event-driven aspects
+
+- Laravel auth registration events are used (`Registered` event)
+- Webhook handlers exist for Stripe and Documenso-style payloads
+
+---
+
+## 6) Installation & Local Setup
+
+## Prerequisites
+
+- PHP 8.2+
+- Composer
+- Node.js + npm
+- Database (MySQL/PostgreSQL/SQLite)
+
+## Setup
 
 ```bash
-php artisan optimize:clear
-php artisan migrate --path=database/migrations
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+npm run dev
+php artisan serve
 ```
 
-Search tips:
+Open the application at the configured app URL (default `http://localhost:8000`).
 
-```bash
-grep -R "Offering::getStatusTextAttribute" -n
-grep -R "investment_status" -n
-grep -R "waterfall_hurdle" -n
-```
+---
 
-## Troubleshooting (short)
+## 7) Configuration Checklist
 
-- Offering not visible: check `visibility` and `status`.
-- Allocation mismatch: verify day-count, compounding, selected WaterFall and ClassHurdle rules.
-- Partner can't see deal: confirm `partner_deals` pivot flags and partner role/middleware.
+## Core
 
-## Diagrams & Examples
+- `APP_URL`, DB credentials, cache/session/queue drivers
 
-Investment lifecycle (Mermaid):
+## Stripe ACH / Connect
 
-```mermaid
-sequenceDiagram
-	participant Investor
-	participant Website
-	participant Admin
-	participant Escrow
+- Seeded gateway code `114` stores `secret_key` and `publishable_key`
+- Configure via gateway/admin settings or env-backed seeder values
 
-	Investor->>Website: View offering
-	Investor->>Website: Complete questionnaire & soft commit
-	Website->>Investor: Send e-sign
-	Investor->>Escrow: Wire funds
-	Escrow->>Website: Confirm funds received
-	Website->>Admin: Update investment state
-```
+## Documenso
 
-Distribution allocation (Mermaid):
+- `api_integrations` entry with code `documenso`
+- Set `api_url`, `api_key`, and enable status in API integrations admin section
 
-```mermaid
-sequenceDiagram
-	participant Sponsor
-	participant System
-	participant ClassA
-	participant ClassB
-	participant Investor1
-	participant Investor2
+## Plaid
 
-	Sponsor->>System: Create Distribution(amount)
-	System->>System: Run Waterfall hurdles in order
-	System->>ClassA: Allocate class amount
-	ClassA->>Investor1: Pro-rata to investors
-	ClassA->>Investor2: Pro-rata to investors
-	System->>Sponsor: Report
-```
+- `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_BASE_URL`
+
+## Email/SMS
+
+- Configure provider in notification settings (SMTP/SendGrid/Mailjet and chosen SMS provider)
+
+## Gateway/IPN
+
+- Configure gateway credentials and callback URLs for enabled payment methods
+
+---
+
+## 8) Operations & Risk Notes
+
+- This platform handles investment and payment-adjacent workflows; secure environment management and strict credential control are mandatory.
+- Validate production webhook exposure and signatures for Stripe and Documenso.
+- For deal distribution cash movement, verify whether downstream payout automation is implemented in your deployment layer or handled operationally.
+- Ensure logging/monitoring, backup, and access-control policies match your compliance requirements.
+
+---
+
+## 9) Developer Notes
+
+- Use route files as bounded contexts:
+  - `routes/admin.php`
+  - `routes/user.php`
+  - `routes/partner_dashboard.php`
+  - `routes/ipn.php`
+- Core deal/offering orchestration is centered in `Admin/DealController`.
+- E-sign behavior depends on both database templates/fields and Documenso API availability.
+- Referral payout behavior is centralized in `PropertyInvest::referralCommission`.
+
+---
 
 ## Contact
 
-For integration, questions, or partnership: mateenzahid1598@gmail.com
-
----
-
-If you'd like I can now:
-
-- generate PNGs of the Mermaid diagrams and save them to `docs/`,
-- split the admin checklist into `ADMIN_CHECKLIST.md` and create a printable PDF,
-- run a spell-check or further condense copy for investor-facing pages.
-
-Tell me which you'd like next.
-
-
+Mateen Zahid  
+Email: mateenzahid1598@gmail.com
