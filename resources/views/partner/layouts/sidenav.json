@@ -1,0 +1,42 @@
+[
+    {
+        "name": "Dashboard",
+        "icon": "home",
+        "url": "partner.dashboard"
+    },
+    {
+        "name": "Deals",
+        "icon": "handshake",
+        "submenu": [
+            {
+                "name": "Deal List",
+                "url": "partner.deals.index"
+            }
+        ]
+    },
+    {
+        "name": "Assets",
+        "icon": "building",
+        "url": "partner.dashboard"
+    },
+    {
+        "name": "Documents",
+        "icon": "file-alt",
+        "url": "partner.dashboard"
+    },
+    {
+        "name": "Investments",
+        "icon": "chart-line",
+        "url": "partner.dashboard"
+    },
+    {
+        "name": "Distributions",
+        "icon": "money-bill-wave",
+        "url": "partner.dashboard"
+    },
+    {
+        "name": "Updates",
+        "icon": "bell",
+        "url": "partner.dashboard"
+    }
+]

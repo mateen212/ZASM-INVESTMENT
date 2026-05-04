@@ -1,0 +1,158 @@
+{
+    "dashboard": {
+        "keyword": [
+            "Dashboard",
+            "Home",
+            "Panel",
+            "Admin",
+            "Control center",
+            "Overview",
+            "Main hub",
+            "Management hub",
+            "Administrative hub",
+            "Central hub",
+            "Command center",
+            "Administrator portal",
+            "Centralized interface",
+            "Admin console",
+            "Management dashboard",
+            "Main screen",
+            "Administrative dashboard",
+            "Command dashboard",
+            "Main control panel"
+        ],
+        "title": "Dashboard",
+        "icon": "las la-home",
+        "route_name": "admin.dashboard",
+        "menu_active": "admin.dashboard"
+    },
+    "deals":{
+        "title": " Deals",
+        "icon": "las la-stream",
+        
+        "menu_active": "admin.deals*",
+        "submenu": [
+            {
+                "keyword": [
+                    "Deals",
+                    "Deals"
+                ],
+                "title": "Deals List",
+                "route_name": "admin.deals.index",
+                "menu_active": "admin.deals.index"
+            }
+        ]
+    },
+    "partner_management": {
+        "title": "Partner Management",
+        "icon": "las la-handshake",
+        "menu_active": "admin.partner-management*",
+        "submenu": [
+            {
+                "keyword": [
+                    "Partners",
+                    "Partner List",
+                    "All Partners"
+                ],
+                "title": "All Partners",
+                "route_name": "admin.partner-management.index",
+                "menu_active": "admin.partner-management.index"
+            },
+            {
+                "keyword": [
+                    "Add Partner",
+                    "Create Partner",
+                    "New Partner"
+                ],
+                "title": "Add New Partner",
+                "route_name": "admin.partner-management.create",
+                "menu_active": "admin.partner-management.create"
+            }
+        ]
+    },
+    "offerings": {
+        "title": "Offerings",
+        "icon": "las la-gift",
+        "menu_active": "admin.deals.offerings*",
+        "submenu": [
+            {
+                "title": "All Offerings",
+                "route_name": "admin.deals.index",
+                "menu_active": "admin.deals.index"
+            }
+        ]
+    },
+    "investment": {
+        "title": "Investment",
+        "icon": "las la-stream",
+        "counters": [
+            "pendingProfitCount"
+        ],
+        "menu_active": "admin.invest*",
+        "submenu": [
+            {
+                "keyword": [
+                    "Running Investment",
+                    "investment running"
+                ],
+                "title": "Running Investment",
+                "route_name": "admin.invest.running",
+                "menu_active": "admin.invest.running"
+            },
+            {
+                "keyword": [
+                    "Completed Investment",
+                    "investment completed"
+                ],
+                "title": "Completed Investment",
+                "route_name": "admin.invest.completed",
+                "menu_active": "admin.invest.completed"
+            },
+            {
+                "keyword": [
+                    "All Investment",
+                    "investment all"
+                ],
+                "title": "All Investment",
+                "route_name": "admin.invest.all",
+                "menu_active": "admin.invest.all"
+            },
+            {
+                "keyword": [
+                    "Installment Log"
+                ],
+                "title": "Installment Log",
+                "route_name": "admin.invest.installment",
+                "menu_active": "admin.invest.installment"
+            },
+            {
+                "keyword": [
+                    "Pending Profit",
+                    "user profit"
+                ],
+                "title": "Pending Profit",
+                "route_name": "admin.invest.profit.pending",
+                "menu_active": "admin.invest.profit.pending",
+                "counter": "pendingProfitCount"
+            },
+            {
+                "keyword": [
+                    "Profit Log",
+                    "profit history"
+                ],
+                "title": "Profit Log",
+                "route_name": "admin.invest.profit",
+                "menu_active": "admin.invest.profit"
+            },
+            {
+                "keyword": [
+                    "Investment statistics",
+                    "invest statistics",
+                    "statistics"
+                ],
+                "title": "Investment Statistics",
+                "route_name": "admin.invest.report.dashboard",
+                "menu_active": "admin.invest.report.dashboard"
+            }
+        ]
+    }

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ gs()->siteName($pageTitle ?? '') }}</title>
+
+    <link rel="shortcut icon" type="image/png" href="{{ siteFavicon() }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('assets/global/css/bootstrap.min.css') }}">
+
+    <link rel="stylesheet" href="{{ asset('assets/admin/css/vendor/bootstrap-toggle.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/global/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/global/css/line-awesome.min.css') }}">
+    <link href="{{ asset('assets/admin/plugins/cosyalert/jquery.cosyAlert.min.css') }}" rel="stylesheet">
+    
+    @stack('style-lib')
+
+    <link rel="stylesheet" href="{{ asset('assets/global/css/select2.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/admin/css/app.css') }}">
+    
+    @stack('style')
+</head>
+
+<body>
+    <div class="page-wrapper default-version">
+        @include('partner.layouts.partials.sidenav')
+        @include('partner.layouts.partials.topnav')
+        <div class="body-wrapper">
+            <div class="bodywrapper__inner">
+                @include('partner.layouts.partials.breadcrumb')
+                @yield('panel')
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ asset('assets/global/js/jquery-3.7.1.min.js') }}"></script>
+    <script src="{{ asset('assets/global/js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ asset('assets/admin/js/vendor/bootstrap-toggle.min.js') }}"></script>
+    <script src="{{ asset('assets/admin/js/cu-modal.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ asset('assets/admin/plugins/cosyalert/jquery.cosyAlert.min.js') }}"></script>
+
+    @include('partials.notify')
+    @stack('script-lib')
+
+    <script src="{{ asset('assets/global/js/nicEdit.js') }}"></script>
+
+    <script src="{{ asset('assets/global/js/select2.min.js') }}"></script>
+    <script src="{{ asset('assets/admin/js/app.js') }}"></script>
+
+    {{-- LOAD NIC EDIT --}}
+    <script>
+        "use strict";
+        bkLib.onDomLoaded(function() {
+            $(".nicEdit").each(function(index) {
+                $(this).attr("id", "nicEditor" + index);
+                new nicEditor({
+                    fullPanel: true
+                }).panelInstance('nicEditor' + index, {
+                    hasPanel: true
+                });
+            });
+        });
+        (function($) {
+            $(document).on('mouseover ', '.nicEdit-main,.nicEdit-panelContain', function() {
+                $('.nicEdit-main').focus();
+            });
+
+            $('.breadcrumb-nav-open').on('click', function() {
+                $(this).toggleClass('active');
+                $('.breadcrumb-nav').toggleClass('active');
+            });
+
+            $('.breadcrumb-nav-close').on('click', function() {
+                $('.breadcrumb-nav').removeClass('active');
+            });
+
+            if ($('.topTap').length) {
+                $('.breadcrumb-nav-open').removeClass('d-none');
+            }
+
+
+            $('.table-responsive').on('click', 'button[data-bs-toggle="dropdown"]', function(e) {
+                const {
+                    top,
+                    left
+                } = $(this).next(".dropdown-menu")[0].getBoundingClientRect();
+                $(this).next(".dropdown-menu").css({
+                    position: "fixed",
+                    inset: "unset",
+                    transform: "unset",
+                    top: top + "px",
+                    left: left + "px",
+                });
+            });
+        })(jQuery);
+    </script>
+
+    @stack('script')
+</body>
+</html>
